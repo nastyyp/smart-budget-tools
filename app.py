@@ -222,7 +222,7 @@ else:
 
     with tab2:
         st.markdown("### Add Income")
-        st.write("Enter a new income amount below.")
+        st.write("Enter a new income amount below")
 
         income = st.number_input(
             "Income amount (€)",
