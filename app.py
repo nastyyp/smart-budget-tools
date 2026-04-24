@@ -262,7 +262,7 @@ with tab_dash:
         ax.plot(x, y, color="#6366f1", linewidth=2.5, zorder=3)
         ax.fill_between(x, y, 0, color="#6366f1", alpha=0.15)
         ax.scatter(x, y, color="#a5b4fc", s=50, zorder=4, edgecolors="#0f0f1a", linewidths=1.5)
-        ax.axhline(0, color="rgba(255,255,255,0.2)", linestyle="--", linewidth=1)
+        ax.axhline(0, color=(1, 1, 1, 0.2), linestyle="--", linewidth=1)
         ax.set_xticks(list(x))
         ax.set_xticklabels(df_sorted["date"].str[:10].tolist(), rotation=30, ha="right", fontsize=8)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"€{v:,.0f}"))
