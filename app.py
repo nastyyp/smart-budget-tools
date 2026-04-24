@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
 class User:
     def __init__(self, name):
@@ -40,62 +39,75 @@ st.set_page_config(
     layout="wide"
 )
 
-# Force light look as much as possible with pure Streamlit elements
-st.title("Smart Student Budgeting Tool")
-st.caption("Track your income, expenses, and savings in euros.")
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+    }
+
+    .main-title {
+        font-size: 42px;
+        font-weight: 800;
+        color: #1e3a8a;
+        margin-bottom: 0;
+    }
+
+    .subtitle {
+        font-size: 18px;
+        color: #475569;
+        margin-top: 0;
+        margin-bottom: 25px;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.07);
+        border: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 10px;
+    }
+
+    .small-note {
+        color: #64748b;
+        font-size: 14px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# ---------------- LOGIN / PROFILE PAGE ----------------
+st.markdown('<p class="main-title">Smart Student Budgeting Tool</p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Track your income, expenses, and savings with a simple dashboard.</p>', unsafe_allow_html=True)
+
 if st.session_state.user is None:
-    st.subheader("Create Your Profile")
+    st.markdown("### Create a User Profile")
+    name = st.text_input("Enter your name")
 
-    col1, col2 = st.columns([1, 1])
+    if st.button("Create Profile", use_container_width=True):
+        if name.strip():
+            st.session_state.user = User(name)
+            st.success(f"Profile created for {name}!")
+            st.rerun()
+        else:
+            st.error("Please enter a name.")
 
-    with col1:
-        st.info("👋 Welcome to your budgeting app")
-        st.success("✅ Track income")
-        st.warning("💸 Manage expenses")
-        st.info("📊 View analytics")
-        st.success("🎯 Improve savings")
-
-    with col2:
-        st.write("### Let's get started")
-        name = st.text_input("Enter your name")
-
-        favorite_color = st.selectbox(
-            "Choose your dashboard mood",
-            ["Blue", "Green", "Purple", "Orange"]
-        )
-
-        if st.button("Create Profile", use_container_width=True):
-            if name.strip():
-                st.session_state.user = User(name)
-                st.session_state.color = favorite_color
-                st.success(f"Profile created for {name}!")
-                st.rerun()
-            else:
-                st.error("Please enter a name.")
-
-    st.divider()
-
-    a, b, c, d = st.columns(4)
-    a.metric("Easy Setup", "1 min")
-    b.metric("Currency", "Euro €")
-    c.metric("Charts", "Included")
-    d.metric("Mode", "Student Friendly")
-
-# ---------------- MAIN APP ----------------
 else:
     user = st.session_state.user
-    color = st.session_state.get("color", "Blue")
 
-    # Sidebar
     with st.sidebar:
-        st.write(f"## Hello, {user.name} 👋")
-        st.write("### Profile")
-        st.write(f"**Theme mood:** {color}")
+        st.markdown(f"## 👋 Hello, {user.name}")
+        st.write("Welcome to your finance dashboard.")
+        st.divider()
+
+        st.markdown("### Quick Stats")
         st.write(f"**Income:** €{user.total_income():.2f}")
         st.write(f"**Expenses:** €{user.total_expenses():.2f}")
         st.write(f"**Balance:** €{user.balance():.2f}")
@@ -106,29 +118,29 @@ else:
             st.session_state.user = None
             st.rerun()
 
-    st.subheader(f"Welcome back, {user.name}")
+    st.markdown(f"## Welcome back, {user.name}!")
 
+    # Dashboard first
     tab1, tab2, tab3 = st.tabs(["Dashboard", "Add Income", "Add Expense"])
 
-    # ---------------- DASHBOARD ----------------
     with tab1:
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Total Income", f"€{user.total_income():.2f}")
-        c2.metric("Total Expenses", f"€{user.total_expenses():.2f}")
-        c3.metric("Balance", f"€{user.balance():.2f}")
-        c4.metric("Savings Rate", f"{user.savings_rate():.1f}%")
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric("Total Income", f"€{user.total_income():.2f}")
+        col2.metric("Total Expenses", f"€{user.total_expenses():.2f}")
+        col3.metric("Balance", f"€{user.balance():.2f}")
+        col4.metric("Savings Rate", f"{user.savings_rate():.1f}%")
 
         st.divider()
 
         left, right = st.columns([2, 1])
 
         with left:
-            st.write("### Financial Overview")
+            st.markdown("### Financial Overview")
 
             if user.history:
                 running_balance = []
                 current = 0
-
                 for item in user.history:
                     if item["Type"] == "Income":
                         current += item["Amount"]
@@ -151,38 +163,39 @@ else:
                 st.bar_chart(compare_df)
 
             else:
-                st.info("No data yet. Add income or expenses first.")
+                st.info("No data yet. Add some income or expenses first.")
 
         with right:
-            st.write("### Income vs Expenses")
+            st.markdown("### Expense vs Income Analytics")
 
             if user.total_income() > 0 or user.total_expenses() > 0:
-                pie_values = [user.total_income(), user.total_expenses()]
-                pie_labels = ["Income", "Expenses"]
+                pie_df = pd.DataFrame({
+                    "Category": ["Income", "Expenses"],
+                    "Amount": [user.total_income(), user.total_expenses()]
+                })
 
-                fig, ax = plt.subplots()
-                ax.pie(
-                    pie_values,
-                    labels=pie_labels,
-                    autopct="%1.1f%%",
-                    startangle=90
+                st.pyplot(
+                    pie_df.set_index("Category").plot.pie(
+                        y="Amount",
+                        autopct="%1.1f%%",
+                        figsize=(4, 4),
+                        legend=False
+                    ).figure
                 )
-                ax.axis("equal")
-                st.pyplot(fig)
             else:
                 st.info("Pie chart will appear after adding data.")
 
-            st.write("### Savings Progress")
+            st.markdown("### Savings Progress")
             progress = max(0.0, min(user.savings_rate() / 100, 1.0))
             st.progress(progress)
             st.write(f"Current savings progress: **{user.savings_rate():.1f}%**")
 
         st.divider()
 
-        p1, p2 = st.columns(2)
+        colA, colB = st.columns(2)
 
-        with p1:
-            st.write("### Recent Activity")
+        with colA:
+            st.markdown("### Recent Activity")
             if user.history:
                 history_df = pd.DataFrame(user.history[::-1])
                 history_df["Amount"] = history_df["Amount"].apply(lambda x: f"€{x:.2f}")
@@ -190,8 +203,8 @@ else:
             else:
                 st.write("No activity yet.")
 
-        with p2:
-            st.write("### Quick Insights")
+        with colB:
+            st.markdown("### Quick Insights")
 
             if user.total_income() == 0 and user.total_expenses() == 0:
                 st.info("Start by adding income and expenses.")
@@ -201,15 +214,16 @@ else:
                 elif user.balance() < 0:
                     st.error("Your expenses are higher than your income.")
                 else:
-                    st.warning("Your balance is zero.")
+                    st.warning("Your balance is exactly zero.")
 
-                st.write(f"- Income records: **{len(user.incomes)}**")
-                st.write(f"- Expense records: **{len(user.expenses)}**")
+                st.write(f"- Number of income records: **{len(user.incomes)}**")
+                st.write(f"- Number of expense records: **{len(user.expenses)}**")
                 st.write(f"- Current balance: **€{user.balance():.2f}**")
 
-    # ---------------- ADD INCOME ----------------
     with tab2:
-        st.write("### Add Income")
+        st.markdown("### Add Income")
+        st.write("Enter a new income amount below.")
+
         income = st.number_input(
             "Income amount (€)",
             min_value=0.0,
@@ -225,9 +239,10 @@ else:
             else:
                 st.error("Enter an amount greater than 0.")
 
-    # ---------------- ADD EXPENSE ----------------
     with tab3:
-        st.write("### Add Expense")
+        st.markdown("### Add Expense")
+        st.write("Enter a new expense amount below.")
+
         expense = st.number_input(
             "Expense amount (€)",
             min_value=0.0,
