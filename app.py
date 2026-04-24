@@ -122,7 +122,7 @@ if st.session_state.user is None:
     _, col, _ = st.columns([1, 2, 1])
     with col:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.title("💶 Student Budget")
+        st.title("Student Budget")
         st.markdown("Track your money with style.")
         st.markdown("---")
         name = st.text_input("What's your name?", placeholder="e.g. Alex")
