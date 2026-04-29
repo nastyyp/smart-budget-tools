@@ -70,13 +70,15 @@ plt.rcParams.update({
     "font.size":         11,
 })
 
-INCOME_COLORS  = ["#6366f1","#818cf8","#a5b4fc","#c7d2fe","#e0e7ff"]
-EXPENSE_COLORS = ["#f87171","#fb923c","#fbbf24","#34d399","#22d3ee",
-                  "#818cf8","#e879f9","#94a3b8","#f472b6"]
+INCOME_COLORS  = ["#6366f1", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff"]
+EXPENSE_COLORS = ["#f87171", "#fb923c", "#fbbf24", "#34d399", "#22d3ee",
+                  "#818cf8", "#e879f9", "#94a3b8", "#f472b6"]
+SAVINGS_COLORS = ["#4ade80", "#22c55e", "#14b8a6", "#38bdf8", "#818cf8",
+                  "#a78bfa", "#f472b6", "#f59e0b", "#f87171", "#94a3b8"]
 
-CATEGORIES_INCOME  = ["Salary / Part-time","Scholarship","Family Support","Freelance","Other"]
-CATEGORIES_EXPENSE = ["Rent","Food & Groceries","Transport","Books & Supplies",
-                      "Entertainment","Health","Clothing","Subscriptions","Other"]
+CATEGORIES_INCOME  = ["Salary / Part-time", "Scholarship", "Family Support", "Freelance", "Other"]
+CATEGORIES_EXPENSE = ["Rent", "Food & Groceries", "Transport", "Books & Supplies",
+                      "Entertainment", "Health", "Clothing", "Subscriptions", "Other"]
 
 # ── Data model ────────────────────────────────────────────────────────────────
 class User:
@@ -87,16 +89,20 @@ class User:
     def add_income(self, amount, category, note=""):
         if amount > 0:
             self.transactions.append({
-                "type": "income", "amount": amount,
-                "category": category, "note": note,
+                "type": "income",
+                "amount": amount,
+                "category": category,
+                "note": note,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
             })
 
     def add_expense(self, amount, category, note=""):
         if amount > 0:
             self.transactions.append({
-                "type": "expense", "amount": amount,
-                "category": category, "note": note,
+                "type": "expense",
+                "amount": amount,
+                "category": category,
+                "note": note,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
             })
 
@@ -116,6 +122,12 @@ class User:
 # ── Session state ─────────────────────────────────────────────────────────────
 if "user" not in st.session_state:
     st.session_state.user = None
+
+if "savings_percent" not in st.session_state:
+    st.session_state.savings_percent = 20
+
+if "savings_boxes_count" not in st.session_state:
+    st.session_state.savings_boxes_count = 3
 
 # ── Onboarding ────────────────────────────────────────────────────────────────
 if st.session_state.user is None:
@@ -165,7 +177,9 @@ with st.sidebar:
         st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_dash, tab_in, tab_ex, tab_hist = st.tabs(["📊 Dashboard", "➕ Add Income", "➖ Add Expense", "📋 History"])
+tab_dash, tab_in, tab_ex, tab_hist, tab_save = st.tabs(
+    ["📊 Dashboard", "➕ Add Income", "➖ Add Expense", "📋 History", "💰 Savings"]
+)
 
 # ── DASHBOARD ─────────────────────────────────────────────────────────────────
 with tab_dash:
@@ -182,7 +196,7 @@ with tab_dash:
         k1, k2, k3, k4 = st.columns(4)
         for col, label, value, color in [
             (k1, "Total Income",   f"€{user.total_income():,.2f}",  "#4ade80"),
-            (k2, "Total Expenses", f"€{user.total_expenses():,.2f}","#f87171"),
+            (k2, "Total Expenses", f"€{user.total_expenses():,.2f}", "#f87171"),
             (k3, "Net Balance",    f"€{user.balance():,.2f}",       "#4ade80" if bal >= 0 else "#f87171"),
             (k4, "Savings Rate",   f"{savings_rate:.1f}%",          "#818cf8"),
         ]:
@@ -212,9 +226,12 @@ with tab_dash:
                     pctdistance=0.75,
                 )
                 for t in autotexts:
-                    t.set_color("#0f0f1a"); t.set_fontsize(9); t.set_fontweight("bold")
+                    t.set_color("#0f0f1a")
+                    t.set_fontsize(9)
+                    t.set_fontweight("bold")
                 for t in texts:
-                    t.set_color("#e8e8f0"); t.set_fontsize(9)
+                    t.set_color("#e8e8f0")
+                    t.set_fontsize(9)
                 ax.text(0, 0, f"€{user.total_income():,.0f}", ha="center", va="center",
                         fontsize=13, color="#4ade80", fontweight="bold")
                 fig.tight_layout()
@@ -236,9 +253,12 @@ with tab_dash:
                     pctdistance=0.75,
                 )
                 for t in autotexts:
-                    t.set_color("#0f0f1a"); t.set_fontsize(9); t.set_fontweight("bold")
+                    t.set_color("#0f0f1a")
+                    t.set_fontsize(9)
+                    t.set_fontweight("bold")
                 for t in texts:
-                    t.set_color("#e8e8f0"); t.set_fontsize(9)
+                    t.set_color("#e8e8f0")
+                    t.set_fontsize(9)
                 ax.text(0, 0, f"€{user.total_expenses():,.0f}", ha="center", va="center",
                         fontsize=13, color="#f87171", fontweight="bold")
                 fig.tight_layout()
@@ -275,14 +295,14 @@ with tab_dash:
             st.markdown("#### Income vs Expenses by category")
             inc_grp = inc_df.groupby("category")["amount"].sum().rename("Income")
             exp_grp = exp_df.groupby("category")["amount"].sum().rename("Expenses")
-            merged  = pd.concat([inc_grp, exp_grp], axis=1).fillna(0)
+            merged = pd.concat([inc_grp, exp_grp], axis=1).fillna(0)
 
             fig, ax = plt.subplots(figsize=(10, 3.5))
             n = len(merged)
             x = range(n)
             w = 0.35
-            ax.bar([i - w/2 for i in x], merged["Income"],   width=w, color="#4ade80",
-                   label="Income",   edgecolor="#0f0f1a", linewidth=0.8)
+            ax.bar([i - w/2 for i in x], merged["Income"], width=w, color="#4ade80",
+                   label="Income", edgecolor="#0f0f1a", linewidth=0.8)
             ax.bar([i + w/2 for i in x], merged["Expenses"], width=w, color="#f87171",
                    label="Expenses", edgecolor="#0f0f1a", linewidth=0.8)
             ax.set_xticks(list(x))
@@ -300,7 +320,7 @@ with tab_in:
     col1, col2 = st.columns(2)
     with col1:
         inc_amount = st.number_input("Amount (€)", min_value=0.0, step=1.0, format="%.2f", key="inc_amt")
-        inc_cat    = st.selectbox("Category", CATEGORIES_INCOME, key="inc_cat")
+        inc_cat = st.selectbox("Category", CATEGORIES_INCOME, key="inc_cat")
     with col2:
         inc_note = st.text_input("Note (optional)", placeholder="e.g. January salary", key="inc_note")
     if st.button("Add Income ➕", use_container_width=True):
@@ -317,7 +337,7 @@ with tab_ex:
     col1, col2 = st.columns(2)
     with col1:
         exp_amount = st.number_input("Amount (€)", min_value=0.0, step=1.0, format="%.2f", key="exp_amt")
-        exp_cat    = st.selectbox("Category", CATEGORIES_EXPENSE, key="exp_cat")
+        exp_cat = st.selectbox("Category", CATEGORIES_EXPENSE, key="exp_cat")
     with col2:
         exp_note = st.text_input("Note (optional)", placeholder="e.g. Monthly rent", key="exp_note")
     if st.button("Add Expense ➖", use_container_width=True):
@@ -339,11 +359,131 @@ with tab_hist:
         filtered = df if filter_type == "All" else \
                    df[df["type"] == ("income" if filter_type == "Income only" else "expense")]
 
-        display = filtered[["date","type","category","amount","note"]].copy()
+        display = filtered[["date", "type", "category", "amount", "note"]].copy()
         display["amount"] = display["amount"].apply(lambda x: f"€{x:,.2f}")
-        display["type"]   = display["type"].str.capitalize()
-        display.columns   = ["Date","Type","Category","Amount","Note"]
+        display["type"] = display["type"].str.capitalize()
+        display.columns = ["Date", "Type", "Category", "Amount", "Note"]
         st.dataframe(display[::-1].reset_index(drop=True), use_container_width=True, hide_index=True)
 
         csv = filtered.to_csv(index=False).encode("utf-8")
         st.download_button("⬇️ Download CSV", csv, "budget_export.csv", "text/csv")
+
+# ── SAVINGS ───────────────────────────────────────────────────────────────────
+with tab_save:
+    st.markdown("### Savings Planner")
+
+    total_income = user.total_income()
+
+    if total_income <= 0:
+        st.warning("Add income first to use the savings planner.")
+    else:
+        s1, s2, s3 = st.columns(3)
+
+        with s1:
+            st.metric("Total Income", f"€{total_income:,.2f}")
+
+        with s2:
+            savings_percent = st.slider(
+                "How much of your income do you want to save? (%)",
+                min_value=0,
+                max_value=100,
+                value=st.session_state.savings_percent,
+                step=1
+            )
+            st.session_state.savings_percent = savings_percent
+
+        total_savings = total_income * savings_percent / 100
+
+        with s3:
+            st.metric("Total Savings Amount", f"€{total_savings:,.2f}")
+
+        st.markdown("---")
+        st.markdown("#### Savings boxes setup")
+
+        boxes_count = st.number_input(
+            "How many savings boxes do you want?",
+            min_value=1,
+            max_value=10,
+            value=st.session_state.savings_boxes_count,
+            step=1
+        )
+        st.session_state.savings_boxes_count = boxes_count
+
+        savings_boxes = []
+        total_box_percent = 0
+
+        for i in range(boxes_count):
+            st.markdown(f"##### Box {i+1}")
+            c1, c2, c3 = st.columns([2, 1, 1])
+
+            default_name = f"Box {i+1}"
+            with c1:
+                box_name = st.text_input(
+                    f"Box name {i+1}",
+                    value=default_name,
+                    key=f"box_name_{i}"
+                )
+            with c2:
+                box_percent = st.number_input(
+                    f"Percent % {i+1}",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=0.0,
+                    step=1.0,
+                    key=f"box_percent_{i}"
+                )
+            box_amount = total_savings * box_percent / 100
+            with c3:
+                st.metric("Amount", f"€{box_amount:,.2f}")
+
+            total_box_percent += box_percent
+            savings_boxes.append({
+                "Box Name": box_name,
+                "Percent": box_percent,
+                "Amount (€)": round(box_amount, 2)
+            })
+
+        st.markdown("---")
+
+        if total_box_percent == 100:
+            st.success("✅ Great! Your savings boxes add up to 100%.")
+        elif total_box_percent < 100:
+            st.warning(f"Your boxes currently add up to {total_box_percent:.1f}%. Add more to reach 100%.")
+        else:
+            st.error(f"Your boxes currently add up to {total_box_percent:.1f}%. Please reduce them to 100%.")
+
+        st.markdown("#### Savings allocation table")
+        boxes_df = pd.DataFrame(savings_boxes)
+        st.dataframe(boxes_df, use_container_width=True, hide_index=True)
+
+        valid_boxes = boxes_df[boxes_df["Percent"] > 0]
+
+        if not valid_boxes.empty:
+            st.markdown("#### Savings allocation chart")
+            fig, ax = plt.subplots(figsize=(6, 5))
+            wedges, texts, autotexts = ax.pie(
+                valid_boxes["Amount (€)"],
+                labels=valid_boxes["Box Name"],
+                colors=SAVINGS_COLORS[:len(valid_boxes)],
+                autopct="%1.0f%%",
+                startangle=90,
+                wedgeprops=dict(edgecolor="#0f0f1a", linewidth=2)
+            )
+            for t in texts:
+                t.set_color("#e8e8f0")
+                t.set_fontsize(9)
+            for t in autotexts:
+                t.set_color("#0f0f1a")
+                t.set_fontsize(9)
+                t.set_fontweight("bold")
+
+            ax.set_title("Savings Distribution", color="#e8e8f0", pad=14)
+            fig.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+
+        st.markdown("#### Summary")
+        st.write(f"- Total income: **€{total_income:,.2f}**")
+        st.write(f"- Savings percentage: **{savings_percent}%**")
+        st.write(f"- Total savings amount: **€{total_savings:,.2f}**")
+        st.write(f"- Number of savings boxes: **{boxes_count}**")
