@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import date
 
-# ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Smart Budget",
     page_icon="💶",
@@ -11,7 +10,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ── Data model ───────────────────────────────────────────────────────────────
+# -----------------------------
+# Data model
+# -----------------------------
 class User:
     def __init__(self, name):
         self.name = name
@@ -64,7 +65,9 @@ class User:
         return pd.DataFrame(self.expenses)
 
 
-# ── Session state ────────────────────────────────────────────────────────────
+# -----------------------------
+# Session state
+# -----------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -72,13 +75,12 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 if "page" not in st.session_state:
-    st.session_state.page = "Home"
-
-if "open_dashboard" not in st.session_state:
-    st.session_state.open_dashboard = False
+    st.session_state.page = "Dashboard"
 
 
-# ── Login page ───────────────────────────────────────────────────────────────
+# -----------------------------
+# Login page
+# -----------------------------
 if not st.session_state.logged_in:
     left, center, right = st.columns([1, 2, 1])
 
@@ -96,7 +98,7 @@ if not st.session_state.logged_in:
                 if name.strip():
                     st.session_state.user = User(name.strip())
                     st.session_state.logged_in = True
-                    st.session_state.page = "Home"
+                    st.session_state.page = "Dashboard"
                     st.rerun()
                 else:
                     st.error("Please enter your name.")
@@ -104,7 +106,9 @@ if not st.session_state.logged_in:
     st.stop()
 
 
-# ── Main app ─────────────────────────────────────────────────────────────────
+# -----------------------------
+# Main app
+# -----------------------------
 user = st.session_state.user
 
 with st.sidebar:
@@ -113,8 +117,8 @@ with st.sidebar:
 
     selected_page = st.radio(
         "Navigation",
-        ["Home", "Income", "Expense", "Savings", "Summary"],
-        index=["Home", "Income", "Expense", "Savings", "Summary"].index(st.session_state.page)
+        ["Dashboard", "Income", "Expense", "Savings", "Summary"],
+        index=["Dashboard", "Income", "Expense", "Savings", "Summary"].index(st.session_state.page)
     )
     st.session_state.page = selected_page
 
@@ -127,92 +131,84 @@ with st.sidebar:
     if st.button("Logout", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.user = None
-        st.session_state.page = "Home"
-        st.session_state.open_dashboard = False
+        st.session_state.page = "Dashboard"
         st.rerun()
 
 
-# ── Home page ────────────────────────────────────────────────────────────────
-if st.session_state.page == "Home":
-    st.title("🏠 Home Page")
-    st.write("Welcome to your budget app.")
+# -----------------------------
+# Dashboard
+# -----------------------------
+if st.session_state.page == "Dashboard":
+    st.title("📊 Dashboard")
+    st.write("Main information about your budget.")
 
-    top1, top2, top3, top4 = st.columns(4)
-    top1.metric("Total Income", f"€{user.total_income():,.2f}")
-    top2.metric("Total Expenses", f"€{user.total_expenses():,.2f}")
-    top3.metric("Saved Money", f"€{user.saved_amount:,.2f}")
-    top4.metric("Balance", f"€{user.balance():,.2f}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Income", f"€{user.total_income():,.2f}")
+    c2.metric("Total Expenses", f"€{user.total_expenses():,.2f}")
+    c3.metric("Saved Money", f"€{user.saved_amount:,.2f}")
+    c4.metric("Balance", f"€{user.balance():,.2f}")
 
     st.write("")
 
-    btn_left, btn_center, btn_right = st.columns([1, 2, 1])
-    with btn_center:
-        if st.button("Open Dashboard", use_container_width=True):
-            st.session_state.open_dashboard = True
+    chart_col1, chart_col2 = st.columns(2)
 
-    if st.session_state.open_dashboard:
-        st.write("## Dashboard")
+    with chart_col1:
+        st.write("### Income vs Expenses")
+        values = [user.total_income(), user.total_expenses()]
+        labels = ["Income", "Expenses"]
 
-        cards1, cards2, cards3, cards4 = st.columns(4)
-        cards1.metric("Income", f"€{user.total_income():,.2f}")
-        cards2.metric("Expenses", f"€{user.total_expenses():,.2f}")
-        cards3.metric("Saved", f"€{user.saved_amount:,.2f}")
-        cards4.metric("Balance", f"€{user.balance():,.2f}")
+        fig, ax = plt.subplots(figsize=(5, 4))
+        ax.bar(labels, values)
+        ax.set_ylabel("€")
+        ax.set_title("Income vs Expenses")
+        st.pyplot(fig)
+        plt.close(fig)
 
-        st.write("")
-
-        chart_col1, chart_col2 = st.columns(2)
-
-        with chart_col1:
-            st.write("### Income vs Expenses")
-            values = [user.total_income(), user.total_expenses()]
-            labels = ["Income", "Expenses"]
-
+    with chart_col2:
+        st.write("### Savings Overview")
+        if user.saved_amount > 0 or user.total_income() > 0:
+            other_money = max(user.total_income() - user.saved_amount, 0)
             fig, ax = plt.subplots(figsize=(5, 4))
-            ax.bar(labels, values)
-            ax.set_ylabel("€")
-            ax.set_title("Income vs Expenses")
+            ax.pie(
+                [user.saved_amount, other_money],
+                labels=["Saved", "Other Money"],
+                autopct="%1.0f%%",
+                startangle=90
+            )
+            ax.set_title("Savings Distribution")
             st.pyplot(fig)
             plt.close(fig)
+        else:
+            st.info("No savings or income data yet.")
 
-        with chart_col2:
-            st.write("### Expense Overview")
-            if user.total_expenses() > 0:
-                fig, ax = plt.subplots(figsize=(5, 4))
-                ax.pie(
-                    [user.total_expenses(), max(user.total_income() - user.total_expenses(), 0)],
-                    labels=["Expenses", "Remaining"],
-                    autopct="%1.0f%%",
-                    startangle=90
-                )
-                ax.set_title("Expense Breakdown")
-                st.pyplot(fig)
-                plt.close(fig)
-            else:
-                st.info("No expenses yet.")
+    st.write("")
 
-        st.write("")
+    info1, info2 = st.columns(2)
+
+    with info1:
         st.write("### Quick Info")
+        st.info(f"Income records: {len(user.incomes)}")
+        st.info(f"Expense records: {len(user.expenses)}")
+        st.info(f"Savings rate: {user.savings_rate():.1f}%")
 
-        q1, q2 = st.columns(2)
-        with q1:
-            st.info(f"Income records: {len(user.incomes)}")
-            st.info(f"Expense records: {len(user.expenses)}")
-        with q2:
-            if user.balance() > 0:
-                st.success("Your balance is positive.")
-            elif user.balance() < 0:
-                st.error("Your expenses are higher than your income.")
-            else:
-                st.warning("Your balance is zero.")
+    with info2:
+        st.write("### Status")
+        if user.balance() > 0:
+            st.success("Your balance is positive.")
+        elif user.balance() < 0:
+            st.error("Your expenses are higher than your income.")
+        else:
+            st.warning("Your balance is zero.")
 
-            if user.saved_amount > 0:
-                st.success(f"You saved €{user.saved_amount:,.2f}.")
-            else:
-                st.info("No savings added yet.")
+        if user.saved_amount > 0:
+            st.success(f"You saved €{user.saved_amount:,.2f}.")
+        else:
+            st.info("No savings added yet.")
 
 
-# ── Income page ──────────────────────────────────────────────────────────────
+# -----------------------------
+# Income
+# -----------------------------
 elif st.session_state.page == "Income":
     st.title("➕ Income")
     st.write("Add your income here.")
@@ -227,7 +223,7 @@ elif st.session_state.page == "Income":
                 step=1.0,
                 format="%.2f"
             )
-            income_date = st.date_input("Income date", value=date.today())
+            income_date = st.date_input("Income date", value=date.today(), key="income_date")
 
         with c2:
             income_note = st.text_input("Note", placeholder="e.g. Salary or scholarship")
@@ -254,7 +250,9 @@ elif st.session_state.page == "Income":
         )
 
 
-# ── Expense page ─────────────────────────────────────────────────────────────
+# -----------------------------
+# Expense
+# -----------------------------
 elif st.session_state.page == "Expense":
     st.title("➖ Expense")
     st.write("Add your expenses here.")
@@ -269,7 +267,7 @@ elif st.session_state.page == "Expense":
                 step=1.0,
                 format="%.2f"
             )
-            expense_date = st.date_input("Expense date", value=date.today())
+            expense_date = st.date_input("Expense date", value=date.today(), key="expense_date")
 
         with c2:
             expense_note = st.text_input("Note", placeholder="e.g. Food or transport")
@@ -296,7 +294,9 @@ elif st.session_state.page == "Expense":
         )
 
 
-# ── Savings page ─────────────────────────────────────────────────────────────
+# -----------------------------
+# Savings
+# -----------------------------
 elif st.session_state.page == "Savings":
     st.title("💰 Savings")
     st.write("This section is separate from income and expenses.")
@@ -336,7 +336,9 @@ elif st.session_state.page == "Savings":
         plt.close(fig)
 
 
-# ── Summary page ─────────────────────────────────────────────────────────────
+# -----------------------------
+# Summary
+# -----------------------------
 elif st.session_state.page == "Summary":
     st.title("📌 Summary")
     st.write("Your current financial conclusion.")
