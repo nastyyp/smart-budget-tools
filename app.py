@@ -312,17 +312,7 @@ if st.session_state.page == "Dashboard":
             "Income vs Expenses"
         )
 
-    with chart_col2:
-        st.markdown("<div class='section-title'>Savings Overview</div>", unsafe_allow_html=True)
-        if user.saved_amount > 0 or monthly_income > 0:
-            other_money = max(monthly_income - user.saved_amount, 0)
-            dark_pie_chart(
-                [user.saved_amount, other_money],
-                ["Saved", "Other Money"],
-                "Savings Distribution"
-            )
-        else:
-            st.info("No savings or income data yet.")
+
 
     st.write("")
 
