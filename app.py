@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Styling
+# Simple dark styling
 # -----------------------------
 st.markdown("""
 <style>
@@ -23,47 +23,48 @@ st.markdown("""
     }
 
     .main-title {
-        font-size: 2.5rem;
+        font-size: 2.4rem;
         font-weight: 700;
         color: white;
-        text-align: center;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.2rem;
     }
 
     .sub-text {
         color: #cbd5e1;
         font-size: 1rem;
-        text-align: center;
-        margin-bottom: 1.2rem;
+        margin-bottom: 1rem;
     }
 
-    .login-box {
+    .card {
         background: rgba(17, 24, 39, 0.88);
         border: 1px solid rgba(148, 163, 184, 0.18);
-        padding: 28px;
-        border-radius: 20px;
+        padding: 18px;
+        border-radius: 18px;
         box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     }
 
-    .profile-circle {
-        width: 140px;
-        height: 140px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #334155, #64748b);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 60px;
-        margin: 0 auto 20px auto;
+    .small-label {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .big-value {
         color: white;
+        font-size: 2rem;
+        font-weight: 700;
     }
 
     .section-title {
         color: white;
-        font-size: 1.5rem;
+        font-size: 1.6rem;
         font-weight: 700;
         margin-top: 0.5rem;
         margin-bottom: 0.8rem;
+    }
+
+    .stSidebar {
+        background: rgba(15, 23, 42, 0.95);
     }
 
     [data-testid="stSidebar"] {
@@ -140,6 +141,19 @@ class User:
 
 
 # -----------------------------
+# Session state
+# -----------------------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+if "page" not in st.session_state:
+    st.session_state.page = "Dashboard"
+
+
+# -----------------------------
 # Helpers
 # -----------------------------
 def filter_by_month(items, selected_date):
@@ -168,15 +182,8 @@ def dark_bar_chart(labels, values, title):
 
     for bar in bars:
         height = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            height,
-            f"€{height:,.0f}",
-            ha="center",
-            va="bottom",
-            color="white",
-            fontsize=10
-        )
+        ax.text(bar.get_x() + bar.get_width()/2, height, f"€{height:,.0f}",
+                ha="center", va="bottom", color="white", fontsize=10)
 
     st.pyplot(fig)
     plt.close(fig)
@@ -209,61 +216,60 @@ def dark_pie_chart(values, labels, title):
 
 
 # -----------------------------
-# Session state
-# -----------------------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-if "page" not in st.session_state:
-    st.session_state.page = "Dashboard"
-
-
-# -----------------------------
 # Login page
 # -----------------------------
 if not st.session_state.logged_in:
+    left, center, right = st.columns([1.3, 2, 1.3])
 
-    col1, col2, col3 = st.columns([1,2,1])
+    with center:
+        st.markdown("<div style='height:70px'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='main-title'>💶 Smart Budget</div>", unsafe_allow_html=True)
+        st.markdown("<div class='sub-text'>Login to continue to your dashboard.</div>", unsafe_allow_html=True)
 
-    with col2:
+        with st.form("login_form"):
+            name = st.text_input("Your name")
+            login_button = st.form_submit_button("Login", use_container_width=True)
 
-        st.markdown("""
-        <div style='margin-top:80px;'></div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class='login-box'>
-
-            <div class='profile-circle'>👤</div>
-
-            <div class='main-title'>
-                Smart Budget
-            </div>
-
-        """, unsafe_allow_html=True)
-
-        username = st.text_input(
-            "Log in or Sign in",
-            label_visibility="visible"
-        )
-
-        if st.button("Log in", use_container_width=True):
-
-            st.session_state.user = User(
-                username if username else "User"
-            )
-
-            st.session_state.logged_in = True
-            st.session_state.page = "Dashboard"
-
-            st.rerun()
-
+            if login_button:
+                if name.strip():
+                    st.session_state.user = User(name.strip())
+                    st.session_state.logged_in = True
+                    st.session_state.page = "Dashboard"
+                    st.rerun()
+                else:
+                    st.error("Please enter your name.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.stop()
+
+# -----------------------------
+# Main app
+# -----------------------------
+user = st.session_state.user
+
+with st.sidebar:
+    st.markdown("## Smart Budget")
+    st.write(f"Hi, {user.name} 👋")
+
+    selected_page = st.radio(
+        "Navigation",
+        ["Dashboard", "Income", "Expense", "Savings", "Summary"],
+        index=["Dashboard", "Income", "Expense", "Savings", "Summary"].index(st.session_state.page)
+    )
+    st.session_state.page = selected_page
+
+    st.divider()
+    st.metric("Income", f"€{user.total_income():,.2f}")
+    st.metric("Expenses", f"€{user.total_expenses():,.2f}")
+    st.metric("Balance", f"€{user.balance():,.2f}")
+
+    st.divider()
+    if st.button("Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.session_state.user = None
+        st.session_state.page = "Dashboard"
+        st.rerun()
 
 # -----------------------------
 # Dashboard
@@ -272,8 +278,8 @@ if st.session_state.page == "Dashboard":
     top_left, top_right = st.columns([5, 1.4])
 
     with top_left:
-        st.markdown("<div class='main-title' style='text-align:left;'>📊 Dashboard</div>", unsafe_allow_html=True)
-        st.markdown("<div class='sub-text' style='text-align:left;'>Main information about your budget.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='main-title'>📊 Dashboard</div>", unsafe_allow_html=True)
+        st.markdown("<div class='sub-text'>Main information about your budget.</div>", unsafe_allow_html=True)
 
     with top_right:
         selected_date = st.date_input(
@@ -352,14 +358,19 @@ if st.session_state.page == "Dashboard":
 # Income
 # -----------------------------
 elif st.session_state.page == "Income":
-    st.markdown("<div class='main-title' style='text-align:left;'>➕ Income</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-text' style='text-align:left;'>Add your income here.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-title'>➕ Income</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-text'>Add your income here.</div>", unsafe_allow_html=True)
 
     with st.form("income_form"):
         c1, c2 = st.columns(2)
 
         with c1:
-            income_amount = st.number_input("Income amount (€)", min_value=0.0, step=1.0, format="%.2f")
+            income_amount = st.number_input(
+                "Income amount (€)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f"
+            )
             income_date = st.date_input("Income date", value=date.today(), key="income_date")
 
         with c2:
@@ -386,14 +397,19 @@ elif st.session_state.page == "Income":
 # Expense
 # -----------------------------
 elif st.session_state.page == "Expense":
-    st.markdown("<div class='main-title' style='text-align:left;'>➖ Expense</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-text' style='text-align:left;'>Add your expenses here.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-title'>➖ Expense</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-text'>Add your expenses here.</div>", unsafe_allow_html=True)
 
     with st.form("expense_form"):
         c1, c2 = st.columns(2)
 
         with c1:
-            expense_amount = st.number_input("Expense amount (€)", min_value=0.0, step=1.0, format="%.2f")
+            expense_amount = st.number_input(
+                "Expense amount (€)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f"
+            )
             expense_date = st.date_input("Expense date", value=date.today(), key="expense_date")
 
         with c2:
@@ -420,8 +436,8 @@ elif st.session_state.page == "Expense":
 # Savings
 # -----------------------------
 elif st.session_state.page == "Savings":
-    st.markdown("<div class='main-title' style='text-align:left;'>💰 Savings</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-text' style='text-align:left;'>This section is separate from income and expenses.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-title'>💰 Savings</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-text'>This section is separate from income and expenses.</div>", unsafe_allow_html=True)
 
     with st.form("savings_form"):
         saved_amount = st.number_input(
@@ -455,8 +471,8 @@ elif st.session_state.page == "Savings":
 # Summary
 # -----------------------------
 elif st.session_state.page == "Summary":
-    st.markdown("<div class='main-title' style='text-align:left;'>📌 Summary</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-text' style='text-align:left;'>Your current financial conclusion.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-title'>📌 Summary</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-text'>Your current financial conclusion.</div>", unsafe_allow_html=True)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Income", f"€{user.total_income():,.2f}")
@@ -487,7 +503,7 @@ elif st.session_state.page == "Summary":
     ax.set_facecolor("#111827")
     labels = ["Income", "Expenses", "Savings"]
     values = [user.total_income(), user.total_expenses(), user.saved_amount]
-    ax.bar(labels, values, color=["#22c55e", "#ef4444", "#8b5cf6"])
+    bars = ax.bar(labels, values, color=["#22c55e", "#ef4444", "#8b5cf6"])
     ax.set_ylabel("€", color="#cbd5e1")
     ax.set_title("Income vs Expenses vs Savings", color="white", pad=12)
     ax.tick_params(colors="#cbd5e1")
