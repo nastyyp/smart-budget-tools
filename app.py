@@ -225,59 +225,45 @@ if "page" not in st.session_state:
 # Login page
 # -----------------------------
 if not st.session_state.logged_in:
-    left, center, right = st.columns([1.2, 2, 1.2])
 
-    with center:
-        st.markdown("<div style='height:60px'></div>", unsafe_allow_html=True)
-        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='profile-circle'>👤</div>", unsafe_allow_html=True)
-        st.markdown("<div class='main-title'>Smart Budget</div>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
 
-        with st.form("login_form"):
-            name = st.text_input("Log in or Sign in")
-            login_button = st.form_submit_button("Log in", use_container_width=True)
+    with col2:
 
-            if login_button:
-                if name.strip():
-                    st.session_state.user = User(name.strip())
-                    st.session_state.logged_in = True
-                    st.session_state.page = "Dashboard"
-                    st.rerun()
-                else:
-                    st.error("Please enter your name.")
+        st.markdown("""
+        <div style='margin-top:80px;'></div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class='login-box'>
+
+            <div class='profile-circle'>👤</div>
+
+            <div class='main-title'>
+                Smart Budget
+            </div>
+
+        """, unsafe_allow_html=True)
+
+        username = st.text_input(
+            "Log in or Sign in",
+            label_visibility="visible"
+        )
+
+        if st.button("Log in", use_container_width=True):
+
+            st.session_state.user = User(
+                username if username else "User"
+            )
+
+            st.session_state.logged_in = True
+            st.session_state.page = "Dashboard"
+
+            st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.stop()
-
-
-# -----------------------------
-# Main app
-# -----------------------------
-user = st.session_state.user
-
-with st.sidebar:
-    st.title("Smart Budget")
-    st.write(f"Hi, {user.name} 👋")
-
-    selected_page = st.radio(
-        "Navigation",
-        ["Dashboard", "Income", "Expense", "Savings", "Summary"],
-        index=["Dashboard", "Income", "Expense", "Savings", "Summary"].index(st.session_state.page)
-    )
-    st.session_state.page = selected_page
-
-    st.divider()
-    st.metric("Income", f"€{user.total_income():,.2f}")
-    st.metric("Expenses", f"€{user.total_expenses():,.2f}")
-    st.metric("Balance", f"€{user.balance():,.2f}")
-
-    st.divider()
-    if st.button("Logout", use_container_width=True):
-        st.session_state.logged_in = False
-        st.session_state.user = None
-        st.session_state.page = "Dashboard"
-        st.rerun()
 
 # -----------------------------
 # Dashboard
