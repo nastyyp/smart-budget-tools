@@ -219,11 +219,10 @@ def dark_pie_chart(values, labels, title):
 # Login page
 # -----------------------------
 if not st.session_state.logged_in:
-    left, center, right = st.columns([1.3, 2, 1.3])
+    left_space, main_col, right_col = st.columns([0.8, 2.2, 1.2])
 
-    with center:
-        st.markdown("<div style='height:70px'></div>", unsafe_allow_html=True)
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
+    with main_col:
+        st.markdown("<div style='height:120px'></div>", unsafe_allow_html=True)
         st.markdown("<div class='main-title'>💶 Smart Budget</div>", unsafe_allow_html=True)
         st.markdown("<div class='sub-text'>Login to continue to your dashboard.</div>", unsafe_allow_html=True)
 
@@ -239,7 +238,15 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Please enter your name.")
-        st.markdown("</div>", unsafe_allow_html=True)
+
+    with right_col:
+        st.markdown("<div style='height:120px'></div>", unsafe_allow_html=True)
+        st.image(
+            "https://cdn-icons-png.flaticon.com/512/847/847969.png",
+            width=180
+        )
+
+    st.stop()
 
     st.stop()
 
@@ -250,7 +257,7 @@ user = st.session_state.user
 
 with st.sidebar:
     st.markdown("## Smart Budget")
-    st.write(f"Hi, {user.name} 👋")
+    st.write(f"Hi, {user.name} ")
 
     selected_page = st.radio(
         "Navigation",
