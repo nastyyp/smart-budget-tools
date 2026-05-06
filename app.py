@@ -222,7 +222,6 @@ if not st.session_state.logged_in:
     left, center, right = st.columns([1.3, 2, 1.3])
 
     with center:
-        st.markdown("<div style='height:70px'></div>", unsafe_allow_html=True)
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='main-title'>💶 Smart Budget</div>", unsafe_allow_html=True)
         st.markdown("<div class='sub-text'>Login to continue to your dashboard.</div>", unsafe_allow_html=True)
