@@ -278,7 +278,10 @@ class User:
         return sorted(all_items, key=parse_dt, reverse=True)[:5]
 
     def total_boxes_amount(self):
-        return sum(box["Amount"] for box in self.savings_boxes)
+        total = 0.0
+        for box in self.savings_boxes:
+            total += sum(entry["Amount"] for entry in box["Entries"])
+        return total
 
 # -----------------------------
 # Helpers
@@ -417,9 +420,6 @@ if not st.session_state.logged_in:
 # -----------------------------
 user = st.session_state.user
 
-# -----------------------------
-# Sidebar
-# -----------------------------
 with st.sidebar:
     st.markdown("## 💜 Smart Budget")
     st.write(f"Welcome, **{user.name}** ✨")
@@ -626,7 +626,7 @@ elif st.session_state.page == "Expense":
 # -----------------------------
 elif st.session_state.page == "Savings":
     st.markdown("<div class='page-title'>Savings</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-subtitle'>Create your own savings cells and keep track of all savings entries.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-subtitle'>Add money to savings and track each box separately.</div>", unsafe_allow_html=True)
 
     top_left, top_right = st.columns([1.1, 1])
 
@@ -642,7 +642,7 @@ elif st.session_state.page == "Savings":
                 format="%.2f"
             )
             savings_date = st.date_input("Savings date", value=date.today(), key="savings_date")
-            savings_note = st.text_input("Note", placeholder="e.g. Added to emergency fund")
+            savings_note = st.text_input("Note", placeholder="e.g. Monthly savings")
 
             save_savings = st.form_submit_button("Add Savings", use_container_width=True)
 
@@ -661,14 +661,15 @@ elif st.session_state.page == "Savings":
         st.write("")
         st.markdown(metric_card("Savings Rate", f"{user.savings_rate():.1f}%", "Of total income", "#22c55e"), unsafe_allow_html=True)
         st.write("")
-        st.markdown(metric_card("Savings Boxes Total", f"€{user.total_boxes_amount():,.2f}", "Allocated into cells", "#60a5fa"), unsafe_allow_html=True)
+        st.markdown(metric_card("Boxes Total", f"€{user.total_boxes_amount():,.2f}", "Inside boxes", "#60a5fa"), unsafe_allow_html=True)
 
     st.write("")
+
     st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-    st.markdown("<div class='section-title'>Savings Cells / Boxes</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Savings Boxes Setup</div>", unsafe_allow_html=True)
 
     box_count = st.number_input(
-        "How many savings cells do you want?",
+        "How many savings boxes do you want?",
         min_value=1,
         max_value=12,
         value=st.session_state.savings_box_count,
@@ -676,58 +677,96 @@ elif st.session_state.page == "Savings":
     )
     st.session_state.savings_box_count = box_count
 
-    with st.form("boxes_form"):
-        boxes = []
+    with st.form("boxes_setup_form"):
+        new_boxes = []
 
         for i in range(box_count):
-            st.write(f"### Cell {i+1}")
-            c1, c2, c3 = st.columns(3)
+            st.write(f"### Box {i+1}")
+            c1, c2 = st.columns(2)
 
             default_name = user.savings_boxes[i]["Name"] if i < len(user.savings_boxes) else f"Box {i+1}"
-            default_type = user.savings_boxes[i]["Purpose"] if i < len(user.savings_boxes) else ""
-            default_amount = user.savings_boxes[i]["Amount"] if i < len(user.savings_boxes) else 0.0
+            default_purpose = user.savings_boxes[i]["Purpose"] if i < len(user.savings_boxes) else ""
 
             with c1:
                 box_name = st.text_input(
                     f"Box name {i+1}",
                     value=default_name,
-                    key=f"box_name_{i}"
+                    key=f"setup_box_name_{i}"
                 )
 
             with c2:
                 box_purpose = st.text_input(
-                    f"What is it for? {i+1}",
-                    value=default_type,
-                    placeholder="e.g. Travel, Emergency, Phone, Rent",
-                    key=f"box_purpose_{i}"
+                    f"Purpose {i+1}",
+                    value=default_purpose,
+                    placeholder="e.g. Travel, Emergency, Laptop",
+                    key=f"setup_box_purpose_{i}"
                 )
 
-            with c3:
-                box_amount = st.number_input(
-                    f"Amount (€) {i+1}",
-                    min_value=0.0,
-                    value=float(default_amount),
-                    step=1.0,
-                    format="%.2f",
-                    key=f"box_amount_{i}"
-                )
+            old_entries = []
+            if i < len(user.savings_boxes):
+                old_entries = user.savings_boxes[i]["Entries"]
 
-            boxes.append({
+            new_boxes.append({
                 "Name": box_name,
                 "Purpose": box_purpose,
-                "Amount": box_amount
+                "Entries": old_entries
             })
 
-        save_boxes = st.form_submit_button("Save Savings Boxes", use_container_width=True)
+        save_boxes = st.form_submit_button("Save Boxes Setup", use_container_width=True)
 
         if save_boxes:
-            user.savings_boxes = boxes
-            st.success("Savings boxes updated.")
+            user.savings_boxes = new_boxes
+            st.success("Savings boxes setup updated.")
             st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.write("")
+
+    if user.savings_boxes:
+        st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Add Money to a Box</div>", unsafe_allow_html=True)
+
+        with st.form("box_entry_form"):
+            box_names = [box["Name"] for box in user.savings_boxes]
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                selected_box = st.selectbox("Choose box", box_names)
+            with c2:
+                box_add_amount = st.number_input(
+                    "How much do you add? (€)",
+                    min_value=0.0,
+                    step=1.0,
+                    format="%.2f",
+                    key="box_add_amount"
+                )
+            with c3:
+                box_add_date = st.date_input("Entry date", value=date.today(), key="box_add_date")
+
+            box_add_note = st.text_input("Note", placeholder="e.g. Added part of scholarship", key="box_add_note")
+
+            save_box_entry = st.form_submit_button("Add to Box", use_container_width=True)
+
+            if save_box_entry:
+                if box_add_amount > 0:
+                    for box in user.savings_boxes:
+                        if box["Name"] == selected_box:
+                            box["Entries"].append({
+                                "Amount": box_add_amount,
+                                "Date": str(box_add_date),
+                                "Note": box_add_note
+                            })
+                            break
+                    st.success(f"€{box_add_amount:.2f} added to {selected_box}.")
+                    st.rerun()
+                else:
+                    st.error("Please enter an amount greater than 0.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.write("")
+
     lower_left, lower_right = st.columns([1.2, 1])
 
     with lower_left:
@@ -745,19 +784,31 @@ elif st.session_state.page == "Savings":
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.write("")
+
         if user.savings_boxes:
             st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>Savings Boxes Table</div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>Boxes Table</div>", unsafe_allow_html=True)
 
-            boxes_df = pd.DataFrame(user.savings_boxes)
-            boxes_df["Amount"] = boxes_df["Amount"].apply(lambda x: f"€{x:,.2f}")
+            table_rows = []
+            for box in user.savings_boxes:
+                total_box = sum(entry["Amount"] for entry in box["Entries"])
+                last_added = box["Entries"][-1]["Amount"] if box["Entries"] else 0.0
+
+                table_rows.append({
+                    "Name": box["Name"],
+                    "Purpose": box["Purpose"],
+                    "Last Added (€)": f"€{last_added:,.2f}",
+                    "Total in Box (€)": f"€{total_box:,.2f}"
+                })
+
+            boxes_df = pd.DataFrame(table_rows)
             st.dataframe(boxes_df, use_container_width=True, hide_index=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
 
     with lower_right:
         st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-title'>Boxes Summary</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Box Summary</div>", unsafe_allow_html=True)
 
         allocated = user.total_boxes_amount()
         remaining = user.total_savings() - allocated
@@ -771,11 +822,15 @@ elif st.session_state.page == "Savings":
 
         if user.savings_boxes:
             for box in user.savings_boxes:
+                total_box = sum(entry["Amount"] for entry in box["Entries"])
+                last_added = box["Entries"][-1]["Amount"] if box["Entries"] else 0.0
+
                 st.markdown(f"""
                 <div class="mini-item">
                     <div class="mini-item-title">{box["Name"]}</div>
                     <div class="mini-item-sub">{box["Purpose"] if box["Purpose"] else "No purpose added"}</div>
-                    <div class="mini-item-amount-pos" style="margin-top:6px;">€{box["Amount"]:,.2f}</div>
+                    <div class="mini-item-sub" style="margin-top:6px;">Last added: €{last_added:,.2f}</div>
+                    <div class="mini-item-amount-pos" style="margin-top:6px;">Total: €{total_box:,.2f}</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
