@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import date
+from database import create_tables, save_user, load_user
 
 # -----------------------------
 # Page config
@@ -282,6 +283,7 @@ class User:
         for box in self.savings_boxes:
             total += sum(entry["Amount"] for entry in box["Entries"])
         return total
+create_tables()
 
 # -----------------------------
 # Helpers
@@ -403,7 +405,14 @@ if not st.session_state.logged_in:
 
             if login_button:
                 if name.strip():
-                    st.session_state.user = User(name.strip())
+                    existing_user = load_user(name.strip(), User)
+
+                    if existing_user:
+                        st.session_state.user = existing_user
+                    else:
+                        st.session_state.user = User(name.strip())
+                        save_user(st.session_state.user)
+
                     st.session_state.logged_in = True
                     st.session_state.page = "Dashboard"
                     st.rerun()
@@ -412,6 +421,7 @@ if not st.session_state.logged_in:
 
         st.caption("Your data stays private.")
         st.markdown("</div>", unsafe_allow_html=True)
+
 
     st.stop()
 
@@ -562,6 +572,7 @@ elif st.session_state.page == "Income":
         if save_income:
             if income_amount > 0:
                 user.add_income(income_amount, income_note, income_date)
+                save_user(user)
                 st.success(f"Income of €{income_amount:.2f} added.")
                 st.rerun()
             else:
@@ -603,6 +614,7 @@ elif st.session_state.page == "Expense":
         if save_expense:
             if expense_amount > 0:
                 user.add_expense(expense_amount, expense_note, expense_date)
+                save_user(user)
                 st.success(f"Expense of €{expense_amount:.2f} added.")
                 st.rerun()
             else:
@@ -649,6 +661,7 @@ elif st.session_state.page == "Savings":
             if save_savings:
                 if savings_amount > 0:
                     user.add_savings_entry(savings_amount, savings_note, savings_date)
+                    save_user(user)
                     st.success(f"Savings entry of €{savings_amount:.2f} added.")
                     st.rerun()
                 else:
@@ -716,6 +729,7 @@ elif st.session_state.page == "Savings":
 
         if save_boxes:
             user.savings_boxes = new_boxes
+            save_user(user)
             st.success("Savings boxes setup updated.")
             st.rerun()
 
@@ -757,7 +771,9 @@ elif st.session_state.page == "Savings":
                                 "Date": str(box_add_date),
                                 "Note": box_add_note
                             })
-                            break
+ break
+
+                    save_user(user)
                     st.success(f"€{box_add_amount:.2f} added to {selected_box}.")
                     st.rerun()
                 else:
