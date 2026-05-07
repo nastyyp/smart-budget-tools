@@ -7,7 +7,7 @@ from datetime import date
 # Page config
 # -----------------------------
 st.set_page_config(
-    page_title="wow",
+    page_title="smart budget",
     page_icon="💜",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -31,15 +31,15 @@ st.markdown("""
         border-right: 1px solid rgba(148, 163, 184, 0.10);
     }
 
-    .login-wrapper {
-        max-width: 520px;
-        margin: 20px auto 0 auto;
-        padding: 34px 30px;
-        border-radius: 24px;
-        background: rgba(15, 23, 42, 0.82);
-        border: 1px solid rgba(168, 85, 247, 0.18);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    }
+   .login-wrapper {
+    max-width: 520px;
+    margin: 20px auto 0 auto;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
 
     .avatar-circle {
         width: 110px;
