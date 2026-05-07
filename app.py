@@ -771,7 +771,7 @@ elif st.session_state.page == "Savings":
                                 "Date": str(box_add_date),
                                 "Note": box_add_note
                             })
- break
+                            break
 
                     save_user(user)
                     st.success(f"€{box_add_amount:.2f} added to {selected_box}.")
