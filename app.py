@@ -7,7 +7,7 @@ from datetime import date
 # Page config
 # -----------------------------
 st.set_page_config(
-    page_title="Smart Budget",
+    page_title="wow",
     page_icon="💜",
     layout="wide",
     initial_sidebar_state="expanded"
