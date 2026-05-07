@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import date, datetime
+from datetime import date
 
 # -----------------------------
 # Page config
@@ -156,13 +156,6 @@ st.markdown("""
         font-size: 0.92rem;
     }
 
-    .quick-btn-label {
-        text-align: center;
-        color: #cbd5e1;
-        font-size: 0.86rem;
-        margin-top: 6px;
-    }
-
     div[data-testid="metric-container"] {
         background: rgba(15, 23, 42, 0.82);
         border: 1px solid rgba(148, 163, 184, 0.12);
@@ -215,6 +208,7 @@ class User:
         self.incomes = []
         self.expenses = []
         self.saved_amount = 0.0
+        self.savings_boxes = []
 
     def add_income(self, amount, note="", entry_date=None):
         if amount > 0:
@@ -270,6 +264,8 @@ class User:
             return pd.to_datetime(item["Date"])
         return sorted(all_items, key=parse_dt, reverse=True)[:5]
 
+    def total_boxes_amount(self):
+        return sum(box["Amount"] for box in self.savings_boxes)
 
 # -----------------------------
 # Helpers
@@ -369,6 +365,9 @@ if "user" not in st.session_state:
 
 if "page" not in st.session_state:
     st.session_state.page = "Dashboard"
+
+if "savings_box_count" not in st.session_state:
+    st.session_state.savings_box_count = 3
 
 # -----------------------------
 # Login page
@@ -606,51 +605,141 @@ elif st.session_state.page == "Expense":
 # -----------------------------
 elif st.session_state.page == "Savings":
     st.markdown("<div class='page-title'>Savings</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-subtitle'>This section is separate from income and expenses.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-subtitle'>Create your own savings cells and decide what each one is for.</div>", unsafe_allow_html=True)
 
-    top1, top2 = st.columns([1.1, 1])
+    top_left, top_right = st.columns([1.1, 1])
 
-    with top1:
+    with top_left:
         st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-        with st.form("savings_form"):
+        st.markdown("<div class='section-title'>General Savings</div>", unsafe_allow_html=True)
+
+        with st.form("main_savings_form"):
             saved_amount = st.number_input(
-                "How much money have you saved? (€)",
+                "How much money have you saved in total? (€)",
                 min_value=0.0,
                 value=float(user.saved_amount),
                 step=1.0,
                 format="%.2f"
             )
 
-            save_savings = st.form_submit_button("Save Savings", use_container_width=True)
+            save_savings = st.form_submit_button("Save Total Savings", use_container_width=True)
 
             if save_savings:
                 user.set_saved_amount(saved_amount)
-                st.success(f"Saved amount updated to €{saved_amount:.2f}.")
+                st.success(f"Total savings updated to €{saved_amount:.2f}.")
                 st.rerun()
+
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with top2:
-        s1, s2 = st.columns(2)
-        with s1:
-            st.markdown(metric_card("Saved Money", f"€{user.saved_amount:,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
-        with s2:
-            st.markdown(metric_card("Savings Rate", f"{user.savings_rate():.1f}%", "Of total income", "#22c55e"), unsafe_allow_html=True)
-
+    with top_right:
+        st.markdown(metric_card("Saved Money", f"€{user.saved_amount:,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
         st.write("")
-        st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-title'>Savings Status</div>", unsafe_allow_html=True)
+        st.markdown(metric_card("Savings Rate", f"{user.savings_rate():.1f}%", "Of total income", "#22c55e"), unsafe_allow_html=True)
+        st.write("")
+        st.markdown(metric_card("Savings Boxes Total", f"€{user.total_boxes_amount():,.2f}", "Allocated into cells", "#60a5fa"), unsafe_allow_html=True)
 
-        if user.saved_amount == 0:
-            st.info("You have not entered savings yet.")
-        else:
-            st.success(f"You currently saved €{user.saved_amount:,.2f}.")
+    st.write("")
+    st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Savings Cells / Boxes</div>", unsafe_allow_html=True)
 
-        if user.total_income() > 0:
-            st.write(f"Your savings rate is **{user.savings_rate():.1f}%** of total income.")
-        else:
-            st.write("Add income to compare savings rate.")
+    box_count = st.number_input(
+        "How many savings cells do you want?",
+        min_value=1,
+        max_value=12,
+        value=st.session_state.savings_box_count,
+        step=1
+    )
+    st.session_state.savings_box_count = box_count
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    with st.form("boxes_form"):
+        boxes = []
+
+        for i in range(box_count):
+            st.write(f"### Cell {i+1}")
+            c1, c2, c3 = st.columns(3)
+
+            default_name = user.savings_boxes[i]["Name"] if i < len(user.savings_boxes) else f"Box {i+1}"
+            default_type = user.savings_boxes[i]["Purpose"] if i < len(user.savings_boxes) else ""
+            default_amount = user.savings_boxes[i]["Amount"] if i < len(user.savings_boxes) else 0.0
+
+            with c1:
+                box_name = st.text_input(
+                    f"Box name {i+1}",
+                    value=default_name,
+                    key=f"box_name_{i}"
+                )
+
+            with c2:
+                box_purpose = st.text_input(
+                    f"What is it for? {i+1}",
+                    value=default_type,
+                    placeholder="e.g. Travel, Emergency, Phone, Rent",
+                    key=f"box_purpose_{i}"
+                )
+
+            with c3:
+                box_amount = st.number_input(
+                    f"Amount (€) {i+1}",
+                    min_value=0.0,
+                    value=float(default_amount),
+                    step=1.0,
+                    format="%.2f",
+                    key=f"box_amount_{i}"
+                )
+
+            boxes.append({
+                "Name": box_name,
+                "Purpose": box_purpose,
+                "Amount": box_amount
+            })
+
+        save_boxes = st.form_submit_button("Save Savings Boxes", use_container_width=True)
+
+        if save_boxes:
+            user.savings_boxes = boxes
+            st.success("Savings boxes updated.")
+            st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if user.savings_boxes:
+        st.write("")
+        lower_left, lower_right = st.columns([1.2, 1])
+
+        with lower_left:
+            st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>Savings Boxes Table</div>", unsafe_allow_html=True)
+
+            boxes_df = pd.DataFrame(user.savings_boxes)
+            boxes_df["Amount"] = boxes_df["Amount"].apply(lambda x: f"€{x:,.2f}")
+            st.dataframe(boxes_df, use_container_width=True, hide_index=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with lower_right:
+            st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>Boxes Summary</div>", unsafe_allow_html=True)
+
+            allocated = user.total_boxes_amount()
+            remaining = user.saved_amount - allocated
+
+            if remaining > 0:
+                st.info(f"You still have **€{remaining:,.2f}** not assigned to any box.")
+            elif remaining < 0:
+                st.error(f"You assigned **€{abs(remaining):,.2f}** more than your total savings.")
+            else:
+                st.success("All your savings are assigned to boxes.")
+
+            for box in user.savings_boxes:
+                st.markdown(f"""
+                <div class="mini-item">
+                    <div class="mini-item-title">{box["Name"]}</div>
+                    <div class="mini-item-sub">{box["Purpose"] if box["Purpose"] else "No purpose added"}</div>
+                    <div class="mini-item-amount-pos" style="margin-top:6px;">€{box["Amount"]:,.2f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # Summary
@@ -671,7 +760,6 @@ elif st.session_state.page == "Summary":
         st.markdown(metric_card("Balance", f"€{user.balance():,.2f}", "Current", color), unsafe_allow_html=True)
 
     st.write("")
-
     left_sum, right_sum = st.columns([1.2, 1])
 
     with left_sum:
