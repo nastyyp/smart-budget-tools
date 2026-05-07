@@ -207,7 +207,7 @@ class User:
         self.name = name
         self.incomes = []
         self.expenses = []
-        self.saved_amount = 0.0
+        self.savings_entries = []
         self.savings_boxes = []
 
     def add_income(self, amount, note="", entry_date=None):
@@ -228,23 +228,31 @@ class User:
                 "Date": str(entry_date if entry_date else date.today())
             })
 
+    def add_savings_entry(self, amount, note="", entry_date=None):
+        if amount > 0:
+            self.savings_entries.append({
+                "Type": "Savings",
+                "Amount": amount,
+                "Note": note,
+                "Date": str(entry_date if entry_date else date.today())
+            })
+
     def total_income(self):
         return sum(item["Amount"] for item in self.incomes)
 
     def total_expenses(self):
         return sum(item["Amount"] for item in self.expenses)
 
+    def total_savings(self):
+        return sum(item["Amount"] for item in self.savings_entries)
+
     def balance(self):
         return self.total_income() - self.total_expenses()
-
-    def set_saved_amount(self, amount):
-        if amount >= 0:
-            self.saved_amount = amount
 
     def savings_rate(self):
         if self.total_income() == 0:
             return 0.0
-        return (self.saved_amount / self.total_income()) * 100
+        return (self.total_savings() / self.total_income()) * 100
 
     def income_df(self):
         if not self.incomes:
@@ -256,8 +264,13 @@ class User:
             return pd.DataFrame(columns=["Type", "Amount", "Note", "Date"])
         return pd.DataFrame(self.expenses)
 
+    def savings_df(self):
+        if not self.savings_entries:
+            return pd.DataFrame(columns=["Type", "Amount", "Note", "Date"])
+        return pd.DataFrame(self.savings_entries)
+
     def recent_activity(self):
-        all_items = self.incomes + self.expenses
+        all_items = self.incomes + self.expenses + self.savings_entries
         if not all_items:
             return []
         def parse_dt(item):
@@ -323,7 +336,7 @@ def income_expense_chart(monthly_income, monthly_expenses):
 
 def comparison_chart(user):
     labels = ["Income", "Expenses", "Savings"]
-    values = [user.total_income(), user.total_expenses(), user.saved_amount]
+    values = [user.total_income(), user.total_expenses(), user.total_savings()]
     colors = ["#22c55e", "#ef4444", "#8b5cf6"]
 
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -456,7 +469,7 @@ if st.session_state.page == "Dashboard":
     with c2:
         st.markdown(metric_card("Total Expenses", f"€{monthly_expenses_total:,.2f}", "This month", "#f87171"), unsafe_allow_html=True)
     with c3:
-        st.markdown(metric_card("Saved", f"€{user.saved_amount:,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
+        st.markdown(metric_card("Saved", f"€{user.total_savings():,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
     with c4:
         color = "#22c55e" if monthly_balance >= 0 else "#f87171"
         st.markdown(metric_card("Balance", f"€{monthly_balance:,.2f}", "Current", color), unsafe_allow_html=True)
@@ -478,8 +491,16 @@ if st.session_state.page == "Dashboard":
         recent = user.recent_activity()
         if recent:
             for item in recent:
-                amount_class = "mini-item-amount-pos" if item["Type"] == "Income" else "mini-item-amount-neg"
-                sign = "+" if item["Type"] == "Income" else "-"
+                if item["Type"] == "Income":
+                    amount_class = "mini-item-amount-pos"
+                    sign = "+"
+                elif item["Type"] == "Expense":
+                    amount_class = "mini-item-amount-neg"
+                    sign = "-"
+                else:
+                    amount_class = "mini-item-amount-pos"
+                    sign = "+"
+
                 st.markdown(f"""
                     <div class="mini-item">
                         <div class="mini-item-title">{item["Note"] if item["Note"] else item["Type"]}</div>
@@ -605,34 +626,38 @@ elif st.session_state.page == "Expense":
 # -----------------------------
 elif st.session_state.page == "Savings":
     st.markdown("<div class='page-title'>Savings</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-subtitle'>Create your own savings cells and decide what each one is for.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-subtitle'>Create your own savings cells and keep track of all savings entries.</div>", unsafe_allow_html=True)
 
     top_left, top_right = st.columns([1.1, 1])
 
     with top_left:
         st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-title'>General Savings</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Add Savings Entry</div>", unsafe_allow_html=True)
 
         with st.form("main_savings_form"):
-            saved_amount = st.number_input(
-                "How much money have you saved in total? (€)",
+            savings_amount = st.number_input(
+                "How much do you want to add to savings? (€)",
                 min_value=0.0,
-                value=float(user.saved_amount),
                 step=1.0,
                 format="%.2f"
             )
+            savings_date = st.date_input("Savings date", value=date.today(), key="savings_date")
+            savings_note = st.text_input("Note", placeholder="e.g. Added to emergency fund")
 
-            save_savings = st.form_submit_button("Save Total Savings", use_container_width=True)
+            save_savings = st.form_submit_button("Add Savings", use_container_width=True)
 
             if save_savings:
-                user.set_saved_amount(saved_amount)
-                st.success(f"Total savings updated to €{saved_amount:.2f}.")
-                st.rerun()
+                if savings_amount > 0:
+                    user.add_savings_entry(savings_amount, savings_note, savings_date)
+                    st.success(f"Savings entry of €{savings_amount:.2f} added.")
+                    st.rerun()
+                else:
+                    st.error("Please enter an amount greater than 0.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     with top_right:
-        st.markdown(metric_card("Saved Money", f"€{user.saved_amount:,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
+        st.markdown(metric_card("Saved Money", f"€{user.total_savings():,.2f}", "Total saved", "#a78bfa"), unsafe_allow_html=True)
         st.write("")
         st.markdown(metric_card("Savings Rate", f"{user.savings_rate():.1f}%", "Of total income", "#22c55e"), unsafe_allow_html=True)
         st.write("")
@@ -702,11 +727,25 @@ elif st.session_state.page == "Savings":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    if user.savings_boxes:
-        st.write("")
-        lower_left, lower_right = st.columns([1.2, 1])
+    st.write("")
+    lower_left, lower_right = st.columns([1.2, 1])
 
-        with lower_left:
+    with lower_left:
+        st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Savings History</div>", unsafe_allow_html=True)
+
+        savings_df = user.savings_df()
+        if not savings_df.empty:
+            display_df = savings_df.copy()
+            display_df["Amount"] = display_df["Amount"].apply(lambda x: f"€{x:,.2f}")
+            st.dataframe(display_df[::-1].reset_index(drop=True), use_container_width=True, hide_index=True)
+        else:
+            st.info("No savings entries yet.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.write("")
+        if user.savings_boxes:
             st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
             st.markdown("<div class='section-title'>Savings Boxes Table</div>", unsafe_allow_html=True)
 
@@ -716,20 +755,21 @@ elif st.session_state.page == "Savings":
 
             st.markdown("</div>", unsafe_allow_html=True)
 
-        with lower_right:
-            st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>Boxes Summary</div>", unsafe_allow_html=True)
+    with lower_right:
+        st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Boxes Summary</div>", unsafe_allow_html=True)
 
-            allocated = user.total_boxes_amount()
-            remaining = user.saved_amount - allocated
+        allocated = user.total_boxes_amount()
+        remaining = user.total_savings() - allocated
 
-            if remaining > 0:
-                st.info(f"You still have **€{remaining:,.2f}** not assigned to any box.")
-            elif remaining < 0:
-                st.error(f"You assigned **€{abs(remaining):,.2f}** more than your total savings.")
-            else:
-                st.success("All your savings are assigned to boxes.")
+        if remaining > 0:
+            st.info(f"You still have **€{remaining:,.2f}** not assigned to any box.")
+        elif remaining < 0:
+            st.error(f"You assigned **€{abs(remaining):,.2f}** more than your total savings.")
+        else:
+            st.success("All your savings are assigned to boxes.")
 
+        if user.savings_boxes:
             for box in user.savings_boxes:
                 st.markdown(f"""
                 <div class="mini-item">
@@ -738,8 +778,10 @@ elif st.session_state.page == "Savings":
                     <div class="mini-item-amount-pos" style="margin-top:6px;">€{box["Amount"]:,.2f}</div>
                 </div>
                 """, unsafe_allow_html=True)
+        else:
+            st.info("No savings boxes yet.")
 
-            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # Summary
@@ -754,7 +796,7 @@ elif st.session_state.page == "Summary":
     with c2:
         st.markdown(metric_card("Expenses", f"€{user.total_expenses():,.2f}", "Total", "#f87171"), unsafe_allow_html=True)
     with c3:
-        st.markdown(metric_card("Savings", f"€{user.saved_amount:,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
+        st.markdown(metric_card("Savings", f"€{user.total_savings():,.2f}", "Current", "#a78bfa"), unsafe_allow_html=True)
     with c4:
         color = "#22c55e" if user.balance() >= 0 else "#f87171"
         st.markdown(metric_card("Balance", f"€{user.balance():,.2f}", "Current", color), unsafe_allow_html=True)
@@ -782,8 +824,8 @@ elif st.session_state.page == "Summary":
             else:
                 st.warning("Your balance is zero.")
 
-            if user.saved_amount > 0:
-                st.info(f"You have saved €{user.saved_amount:,.2f}.")
+            if user.total_savings() > 0:
+                st.info(f"You have saved €{user.total_savings():,.2f}.")
             else:
                 st.warning("You have not entered savings yet.")
 
