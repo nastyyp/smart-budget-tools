@@ -33,7 +33,7 @@ st.markdown("""
 
     .login-wrapper {
         max-width: 520px;
-        margin: 50px auto 0 auto;
+        margin: 20px auto 0 auto;
         padding: 34px 30px;
         border-radius: 24px;
         background: rgba(15, 23, 42, 0.82);
